@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content=
+  "width=device-width, initial-scale=1.0">
+  <title>Monopoly Wallet</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href=
+  "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
+            min-height: 100vh;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        
+        .player-card {
+            transition: all 0.3s ease;
+        }
+        
+        .player-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(31, 38, 135, 0.15);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #0071e3 0%, #2997ff 100%);
+            color: white;
+            border: none;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 113, 227, 0.3);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.75);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.9);
+            transform: translateY(-2px);
+        }
+        
+        .bank-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+        
+        input:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.3);
+        }
+  </style>
+</head>
+<body class="text-black">
+  <div class="container mx-auto px-4 py-8 max-w-4xl">
+    <header class="flex justify-between items-center mb-8">
+      <h1 class=
+      "text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
+      Monopoly Wallet</h1><button onclick="addPlayer()" class=
+      "btn-primary px-3 py-1 rounded-lg text-sm"> Add
+      Player</button>
+    </header>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <!-- Bank Card -->
+      <div class="glass-card bank-card p-6 col-span-1">
+        <div class="flex items-center mb-4">
+          <div class=
+          "w-12 h-12 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center mr-3">
+          </div>
+          <div>
+            <h3 class="font-bold">Bank</h3>
+            <p class="text-sm text-gray-600">∞</p>
+          </div>
+        </div>
+        <div class="flex space-x-2">
+          <button onclick="openTransactionModal('bank', 'receive')"
+          class=
+          "btn-primary py-2 px-4 rounded-lg text-sm flex-1">Receive</button>
+          <button onclick="openTransactionModal('bank', 'send')"
+          class=
+          "btn-secondary py-2 px-4 rounded-lg text-sm flex-1">
+          Send</button>
+        </div>
+      </div>
+    </div><!-- Players List -->
+    <h2 class="text-xl font-bold mb-4">Players</h2>
+    <div id="players-container" class=
+    "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+      <!-- Player cards will be added here dynamically -->
+    </div><!-- Transaction History -->
+    <h2 class="text-xl font-bold mb-4">Transaction History</h2>
+    <div class="glass-card p-6">
+      <div id="transaction-history" class="space-y-3">
+        <!-- Transactions will be added here dynamically -->
+        <p class="text-gray-500 italic">No transactions yet</p>
+      </div>
+    </div><!-- Transaction Modal -->
+    <div id="transaction-modal" class=
+    "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+      <div class="glass-card p-6 w-full max-w-md mx-4">
+        <div class="flex justify-between items-center mb-4">
+          <h3 id="modal-title" class="text-xl font-bold"></h3>
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-1">Amount
+          (€)</label> <input type="number" id="transaction-amount"
+          class=
+          "w-full border border-gray-200 rounded-lg px-4 py-2" min=
+          "1">
+        </div>
+        <div id="recipient-container" class="mb-4 hidden">
+          <label class=
+          "block text-sm font-medium mb-1">Recipient</label>
+          <select id="transaction-recipient" class=
+          "w-full border border-gray-200 rounded-lg px-4 py-2">
+            <!-- Options will be added dynamically -->
+          </select>
+        </div><button onclick="processTransaction()" class=
+        "btn-primary w-full py-2 rounded-lg">Confirm</button>
+      </div>
+    </div>
+  </div>
+  <script>
+        // Game state
+        const gameState = {
+            players: [],
+            bankBalance: Infinity, 
+            currentTransaction: {
+                type: null,
+                target: null
+            },
+            transactions: []
+        };
+
+        // DOM elements
+        const playersContainer = document.getElementById('players-container');
+        const bankBalanceElement = document.getElementById('bank-balance');
+        const totalMoneyElement = document.getElementById('total-money');
+        const transactionModal = document.getElementById('transaction-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const transactionAmount = document.getElementById('transaction-amount');
+        const recipientContainer = document.getElementById('recipient-container');
+        const transactionRecipient = document.getElementById('transaction-recipient');
+
+        // Initialize with sample players
+        function initGame() {
+            addPlayerToState('Player 1', 1500);
+            addPlayerToState('Player 2', 1500);
+            updateUI();
+        }
+
+        // Add player to state
+        function addPlayerToState(name, balance = 1500) {
+            gameState.players.push({
+                id: Date.now().toString(),
+                name,
+                balance
+            });
+        }
+
+        // Add player from UI
+        function addPlayer() {
+            const name = prompt("Enter player name:");
+            if (name && name.trim()) {
+                addPlayerToState(name.trim());
+                addTransaction(`Added player ${name.trim()}`);
+                updateUI();
+            }
+        }
+
+        // Remove player
+        function removePlayer(playerId) {
+            gameState.players = gameState.players.filter(player => player.id !== playerId);
+            updateUI();
+        }
+
+        // Open transaction modal
+        function openTransactionModal(target, type) {
+            gameState.currentTransaction = { target, type };
+            
+            if (type === 'send' && target !== 'bank') {
+                // For sending to other players, show recipient dropdown
+                recipientContainer.classList.remove('hidden');
+                transactionRecipient.innerHTML = '';
+                
+                // Add bank as recipient option
+                const bankOption = document.createElement('option');
+                bankOption.value = 'bank';
+                bankOption.textContent = 'Bank';
+                transactionRecipient.appendChild(bankOption);
+                
+                // Add other players as recipient options
+                gameState.players.forEach(player => {
+                    if (player.id !== target) {
+                        const option = document.createElement('option');
+                        option.value = player.id;
+                        option.textContent = player.name;
+                        transactionRecipient.appendChild(option);
+                    }
+                });
+                
+                modalTitle.textContent = `Send Money from ${getTargetName(target)}`;
+            } else {
+                recipientContainer.classList.add('hidden');
+                if (type === 'receive') {
+                    modalTitle.textContent = `Receive Money to ${getTargetName(target)}`;
+                } else {
+                    modalTitle.textContent = `Send Money to ${getTargetName(target)}`;
+                }
+            }
+            
+            transactionAmount.value = '';
+            transactionModal.classList.remove('hidden');
+        }
+
+        // Get target name for display
+        function getTargetName(target) {
+            if (target === 'bank') return 'Bank';
+            const player = gameState.players.find(p => p.id === target);
+            return player ? player.name : '';
+        }
+
+        // Close modal
+        function closeModal() {
+            transactionModal.classList.add('hidden');
+        }
+
+        // Add transaction to history
+        function addTransaction(description) {
+            gameState.transactions.unshift({
+                id: Date.now(),
+                description,
+                timestamp: new Date().toLocaleTimeString()
+            });
+            updateTransactionHistory();
+        }
+
+        // Update transaction history UI
+        function updateTransactionHistory() {
+            const historyContainer = document.getElementById('transaction-history');
+            
+            if (gameState.transactions.length === 0) {
+                historyContainer.innerHTML = '<p class="text-gray-500 italic">No transactions yet</p>';
+                return;
+            }
+            
+            historyContainer.innerHTML = gameState.transactions.map(transaction => `
+                <div class="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
+                    <div>
+                        <p class="font-medium">${transaction.description}</p>
+                        <p class="text-xs text-gray-500">${transaction.timestamp}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Process transaction
+        function processTransaction() {
+            const amount = parseInt(transactionAmount.value);
+            if (!amount || amount <= 0) return;
+            
+            const { target, type } = gameState.currentTransaction;
+            const recipient = transactionRecipient.value;
+            let transactionDesc = '';
+            
+            if (type === 'receive') {
+                // Receiving money (from bank to target)
+                if (target === 'bank') return;
+                
+                const player = gameState.players.find(p => p.id === target);
+                if (player) {
+                    player.balance += amount;
+                    transactionDesc = `Received €${amount} from Bank to ${player.name}`;
+                }
+            } else {
+                // Sending money
+                if (target === 'bank') {
+                    const player = gameState.players.find(p => p.id === recipient);
+                    if (player && player.balance >= amount) {
+                        player.balance -= amount;
+                        gameState.bankBalance += amount;
+                        transactionDesc = `Sent €${amount} from ${player.name} to Bank`;
+                    }
+                } else if (recipient === 'bank') {
+                    const player = gameState.players.find(p => p.id === target);
+                    if (player && player.balance >= amount) {
+                        player.balance -= amount;
+                        gameState.bankBalance += amount;
+                        transactionDesc = `Sent €${amount} from ${player.name} to Bank`;
+                    }
+                } else {
+                    const sender = gameState.players.find(p => p.id === target);
+                    const receiver = gameState.players.find(p => p.id === recipient);
+                    
+                    if (sender && receiver && sender.balance >= amount) {
+                        sender.balance -= amount;
+                        receiver.balance += amount;
+                        transactionDesc = `Sent €${amount} from ${sender.name} to ${receiver.name}`;
+                    }
+                }
+            }
+            
+            if (transactionDesc) {
+                addTransaction(transactionDesc);
+            }
+            
+            closeModal();
+            updateUI();
+        }
+
+        // Update UI
+        function updateUI() {
+            // Update bank balance
+            
+            // Update players list
+            playersContainer.innerHTML = '';
+            
+            gameState.players.forEach(player => {
+                const playerCard = document.createElement('div');
+                playerCard.className = 'glass-card player-card p-4';
+                playerCard.innerHTML = `
+                    <div class="flex items-center mb-3">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center mr-3">
+                            <i class="fas fa-user text-blue-600"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-bold">${player.name}</h3>
+                            <p class="text-sm text-gray-600">€${player.balance.toLocaleString()}</p>
+                        </div>
+                        <button onclick="removePlayer('${player.id}')" class="text-gray-400 hover:text-red-500">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="openTransactionModal('${player.id}', 'receive')" class="btn-primary py-1 px-3 rounded-lg text-xs flex-1">
+                            <i class="fas fa-download mr-1"></i> Receive
+                        </button>
+                        <button onclick="openTransactionModal('${player.id}', 'send')" class="btn-secondary py-1 px-3 rounded-lg text-xs flex-1">
+                            <i class="fas fa-upload mr-1"></i> Send
+                        </button>
+                    </div>
+                `;
+                playersContainer.appendChild(playerCard);
+            });
+            
+        }
+
+        // Initialize the game
+        initGame();
+        updateTransactionHistory();
+  </script>
+</body>
+</html>
